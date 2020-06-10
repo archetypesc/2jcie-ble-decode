@@ -1,0 +1,30 @@
+{
+  "name": "2jcie-ble-decode",
+  "version": "0.0.1",
+  "description": "A simple package to decode the data frames sent by the 2JCIE-BU sensor from Omron",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/archetypesc/2jcie-ble-decode.git"
+  },
+  "keywords": [
+    "Omron",
+    "Archetype",
+    "2JCIE",
+    "2JCIE-BU"
+  ],
+  "author": "Danny Reed",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/archetypesc/2jcie-ble-decode/issues"
+  },
+  "homepage": "https://github.com/archetypesc/2jcie-ble-decode#readme",
+  "dependencies": {
+    "barnowl": "^1.1.0",
+    "binary-parser": "^1.6.2",
+    "events": "^3.1.0"
+  }
+}
