@@ -6,7 +6,8 @@ const advlib = require('advlib');
 const EventEmitter = require('events').EventEmitter;
 const Parser = require("binary-parser").Parser;
 
-var barnowl = null;
+// Example data for test mode
+const mock = require('./mock/example');
 
 const sensorDataParser = new Parser()
     .endianess("little")
@@ -34,46 +35,6 @@ const calculationDataParser = new Parser()
     .uint16("accYAxis")
     .uint16("accZAxis");
 
-const SENSOR_EXAMPLE = {
-    "type": "ADVA-48",
-    "value": "yourMAC",
-    "advHeader": {
-        "type": "SCAN_RSP",
-        "length": 37,
-        "txAdd": "random",
-        "rxAdd": "public"
-    },
-    "advData": {
-        "manufacturerSpecificData": {
-            "companyName": "OMRON Corporation",
-            "companyIdentifierCode": "02d5",
-            "data": "0343db1caa080180006e05f81184fe270042daffffffffffffffff"
-        }
-    }
-};
-
-const CALCULATION_EXAMPLE = {
-    "type": "ADVA-48",
-    "value": "yourMAC",
-    "advHeader": {
-        "type": "ADV_IND",
-        "length": 37,
-        "txAdd": "random",
-        "rxAdd": "public"
-    },
-    "advData": {
-        "flags": [
-            "LE General Discoverable Mode,BR/EDR Not Supported"
-        ],
-        "manufacturerSpecificData": {
-            "companyName": "​OMRON Corporation",
-            "companyIdentifierCode": "02d5",
-            "data": "0343b90a32100000a5820f00fc1b75009304ff"
-        },
-        "shortenedLocalName": "Rbt"
-    }
-};
-
 var lastEventType = 'calculation';
 
 class OmronSensorService extends EventEmitter {
@@ -83,7 +44,6 @@ class OmronSensorService extends EventEmitter {
 
         // Read options
         this.testMode = options && options.testMode;
-
         this.barnowl = options && options.barnowl
             ? options.existingBarnowl
             : new Barnowl();
@@ -121,10 +81,10 @@ class OmronSensorService extends EventEmitter {
         // Test Mode overrides BarnowlHci's event with a realistic OMRON 2JCIE-BU01 event
         // Alternate between the sensor and calculation event types
         if (this.testMode && lastEventType === 'calculation') {
-            tiraid = SENSOR_EXAMPLE;
+            tiraid = mock.SENSOR_EXAMPLE;
             lastEventType = 'sensor';
         } else if (this.testMode && lastEventType === 'sensor') {
-            tiraid = CALCULATION_EXAMPLE;
+            tiraid = mock.CALCULATION_EXAMPLE;
             lastEventType = 'calculation';
         }
 
@@ -149,6 +109,9 @@ class OmronSensorService extends EventEmitter {
 
         // Emit the results
         this.emit('event', decodedData);
+
+        // Make an emitter for every message type ('sensor', 'calculation')
+        this.emit(decodedData.messageType, decodedData);
     }
 
     /**
@@ -199,6 +162,9 @@ class OmronSensorService extends EventEmitter {
             case 38:
                 parsed = sensorDataParser.parse(buf);
 
+                // Enrich with message type
+                parsed.messageType = 'sensor';
+
                 // Perform applicable transformations (see page 102 https://omronfs.omron.com/en_US/ecb/products/pdf/A279-E1-01.pdf)
                 parsed.temperature /= 100; // degC
                 parsed.temperatureF = (parsed.temperature * 9 / 5) + 32; // degF
@@ -209,6 +175,9 @@ class OmronSensorService extends EventEmitter {
                 break;
             case 54:
                 parsed = calculationDataParser.parse(buf);
+
+                // Enrich with message type
+                parsed.messageType = 'calculation';
 
                 // Perform applicable transformations (see page 102-103 https://omronfs.omron.com/en_US/ecb/products/pdf/A279-E1-01.pdf)
                 parsed.discomfortIndex /= 100; // scale of 0 to 100
