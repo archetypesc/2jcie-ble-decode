@@ -39,10 +39,13 @@ const sensor = new Sensor({
 
     // Listener for error events
     sensor.on('error', handleErrors);
+
+}) ();
 ```
 
 ### Configuration 
 The constructor accepts an options object which can be omitted to accept defaults:
+
 `const sensor = new Sensor();`
 
 You can provide an options object parameter to the Sensor() constructor as follows:
@@ -64,8 +67,9 @@ const sensor = new Sensor({
 });
 ```
   
-  ### Output
-  Output will be in the following format:
+### Output
+
+Output will be in the following format:
 
 #### 'sensor' Event Type:
 ```
@@ -105,6 +109,5 @@ const sensor = new Sensor({
 
 # Resources
 
-  
 
 OMRON 2JCIE-BU01 Manual: https://omronfs.omron.com/en_US/ecb/products/pdf/A279-E1-01.pdf
