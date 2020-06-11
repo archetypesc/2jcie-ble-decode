@@ -7,6 +7,8 @@ A simple package to decode the data frames sent by the 2JCIE-BU01 sensor from Om
 
 This package will allow for easy BLE interfacing with the 2JCIE-BU01 sensor from Omron. There are similar sensors that may also work, but are not tested.
 
+There's no support (in this package) for reading data via USB.
+
 # Setup
 
 This package is capable of decoding both "Sensor Data" and "Calculation Data" message types. The sensor only transmits "Sensor Data" by default, but you can use Omron's mobile app to configure it to send both.
@@ -25,9 +27,7 @@ This package is capable of decoding both "Sensor Data" and "Calculation Data" me
 
 ```javascript
 const Sensor = require('2jcie-ble-decode');
-const sensor = new Sensor({
-    testMode: true
-});
+const sensor = new Sensor();
 
 (() => {
     // Listener for all events
