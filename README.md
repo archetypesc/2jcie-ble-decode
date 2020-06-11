@@ -23,7 +23,7 @@ This package is capable of decoding both "Sensor Data" and "Calculation Data" me
 3. Instantiate the dependency with optional configuration
 4. Register event handlers
 
-```
+```javascript
 const Sensor = require('2jcie-ble-decode');
 const sensor = new Sensor({
     testMode: true
@@ -49,7 +49,7 @@ The constructor accepts an options object which can be omitted to accept default
 `const sensor = new Sensor();`
 
 You can provide an options object parameter to the Sensor() constructor as follows:
-```
+```javascript
 const sensor = new Sensor({
 	// Activate test mode, which doesn't require Bluetooth hardware or a sensor. 
 	// You will receive alternating sample "sensor" and "calculation" events ever 1s
@@ -72,7 +72,7 @@ const sensor = new Sensor({
 Output will be in the following format:
 
 #### 'sensor' Event Type:
-```
+```javascript
 {
     "dataType": 3,
     "sequenceNumber": 54,
@@ -89,7 +89,7 @@ Output will be in the following format:
 }
 ```
 #### 'calculation' Event Type:
-```
+```javascript
 {
     "dataType": 3,
     "sequenceNumber": 54,
