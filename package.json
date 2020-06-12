@@ -1,6 +1,6 @@
 {
   "name": "2jcie-ble-decode",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "A simple package to decode the data frames sent by the 2JCIE-BU sensor from Omron",
   "main": "index.js",
   "scripts": {
