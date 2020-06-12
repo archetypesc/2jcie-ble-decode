@@ -1,5 +1,5 @@
 module.exports = {
-    SENSOR_EXAMPLE = {
+    SENSOR_EXAMPLE: {
         "type": "ADVA-48",
         "value": "yourMAC",
         "advHeader": {
@@ -16,7 +16,7 @@ module.exports = {
             }
         }
     },
-    CALCULATION_EXAMPLE = {
+    CALCULATION_EXAMPLE: {
         "type": "ADVA-48",
         "value": "yourMAC",
         "advHeader": {
