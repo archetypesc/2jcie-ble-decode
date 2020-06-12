@@ -45,7 +45,7 @@ class OmronSensorService extends EventEmitter {
         // Read options
         this.testMode = options && options.testMode;
         this.barnowl = options && options.barnowl
-            ? options.existingBarnowl
+            ? options.barnowl
             : new Barnowl();
 
         // Check to see if a beacon whitelist was specified
@@ -59,13 +59,16 @@ class OmronSensorService extends EventEmitter {
         this.isOmronEvent = this.isOmronEvent.bind(this);
         this.passWhitelistCheck = this.passWhitelistCheck.bind(this);
 
-        // Register handlers
-        if (!this.testMode) {
-            this.barnowl.addListener(BarnowlHci, {}, BarnowlHci.SocketListener, {});
-        } else {
-            this.barnowl.addListener(Barnowl, {}, Barnowl.TestListener, {});
+        // Register listeners
+        if(!options.barnowl){
+            if (!this.testMode) {
+                this.barnowl.addListener(BarnowlHci, {}, BarnowlHci.SocketListener, {});
+            } else {
+                this.barnowl.addListener(Barnowl, {}, Barnowl.TestListener, {});
+            }
         }
         
+        // Register handlers
         this.barnowl.on('raddec', this.handleEvent);
         this.barnowl.on('error', this.handleError);
     }
