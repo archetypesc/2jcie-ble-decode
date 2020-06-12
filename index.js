@@ -60,7 +60,7 @@ class OmronSensorService extends EventEmitter {
         this.passWhitelistCheck = this.passWhitelistCheck.bind(this);
 
         // Register listeners
-        if(!options.barnowl){
+        if(!(options && options.barnowl)){
             if (!this.testMode) {
                 this.barnowl.addListener(BarnowlHci, {}, BarnowlHci.SocketListener, {});
             } else {
