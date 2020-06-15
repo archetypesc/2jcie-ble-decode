@@ -43,10 +43,15 @@ class OmronSensorService extends EventEmitter {
         super();
 
         // Read options
-        this.testMode = options && options.testMode;
+        this.testMode = options && options.testMode
+            ? options.testMode === true
+            : false;
         this.barnowl = options && options.barnowl
             ? options.barnowl
-            : new Barnowl();
+            : new Barnowl(); // Default to new Barnowl instance
+        this.interval = options && options.interval
+            ? options.interval
+            : 0; // Default interval is zero
 
         // Check to see if a beacon whitelist was specified
         // Useful for listening to specific devices
@@ -58,16 +63,22 @@ class OmronSensorService extends EventEmitter {
         this.handleError = this.handleError.bind(this);
         this.isOmronEvent = this.isOmronEvent.bind(this);
         this.passWhitelistCheck = this.passWhitelistCheck.bind(this);
+        this.isInvalidEvent = this.isInvalidEvent.bind(this);
+        this.isCooledDown = this.isCooledDown.bind(this);
+        this.isDuplicateEvent = this.isDuplicateEvent.bind(this);
+
+        this.lastEventRecords = { 'sensor': [], 'calculation': [] };
+        this.lastSequenceNumber = { 'sensor': [], 'calculation': [] };
 
         // Register listeners
-        if(!(options && options.barnowl)){
+        if (!(options && options.barnowl)) {
             if (!this.testMode) {
                 this.barnowl.addListener(BarnowlHci, {}, BarnowlHci.SocketListener, {});
             } else {
                 this.barnowl.addListener(Barnowl, {}, Barnowl.TestListener, {});
             }
         }
-        
+
         // Register handlers
         this.barnowl.on('raddec', this.handleEvent);
         this.barnowl.on('error', this.handleError);
@@ -91,9 +102,8 @@ class OmronSensorService extends EventEmitter {
             lastEventType = 'calculation';
         }
 
-        // Take no action if we are in whitelist mode and the event doesn't match a whitelisted sensor ID
-        // Take no action on non-Omron events even if it somehow appears to be from a whitelisted device
-        if(!this.passWhitelistCheck(reddac) || !this.isOmronEvent(tiraid)) return;
+        // Event filter rules
+        if (!this.passEventChecks(reddac, tiraid)) return;
 
         // Extract OMRON data frame contents
         let rawData = tiraid.advData.manufacturerSpecificData.data;
@@ -106,15 +116,55 @@ class OmronSensorService extends EventEmitter {
 
         // Decode the data from the hex payload
         let decodedData = this.decode(rawData);
-
         // Enrich the response with the OMRON device's MAC
         decodedData.deviceId = tiraid.value;
+
+        // Perform post-decoding checks
+        if (!this.passDataChecks(decodedData)) return;
 
         // Emit the results
         this.emit('event', decodedData);
 
         // Make an emitter for every message type ('sensor', 'calculation')
         this.emit(decodedData.messageType, decodedData);
+
+        // Update the cooldown & sequence number
+        this.lastEventRecords[decodedData.messageType][tiraid.value] = new Date();
+        this.lastSequenceNumber[decodedData.messageType][tiraid.value] = decodedData.sequenceNumber;
+    }
+
+    /**
+     * Pre-decoding filter checks
+     * @param {Object} raddec The Raddec object
+     * @param {Object} tiraid The decoded data from the Raddec's packet
+     */
+    passEventChecks(raddec, tiraid) {
+        // Take no action if we are in whitelist mode and the event doesn't match a whitelisted sensor ID
+        if (!this.passWhitelistCheck(raddec)) return false;
+
+        // Take no action on non-Omron events even if it somehow appears to be from a whitelisted device
+        if (!this.isOmronEvent(tiraid)) return false;
+
+        // All checks pass
+        return true;
+    }
+
+    /**
+     * Check to see if the data passes the checks before emitting event
+     * @param {Object} decodedData Decoded data packet
+     */
+    passDataChecks(decodedData) {
+        // Take no action if the cooldown has not elapsed
+        if (!this.isCooledDown(decodedData)) return false;
+
+        // Dump the frame if it's just zeroes
+        // This happens for the first few events when the sensor is just starting up
+        if (this.isInvalidEvent(decodedData)) return false;
+
+        // Do not send duplicate events which seem to be emitted directly from the device
+        if (this.isDuplicateEvent(decodedData)) return false;
+
+        return true;
     }
 
     /**
@@ -145,9 +195,65 @@ class OmronSensorService extends EventEmitter {
      * @param {Object} reddac The reddac object received by Barnowl
      */
     passWhitelistCheck(reddac) {
-        if(!this.whitelist) return true; // Not in whitelist mode
+        if (!this.whitelist) return true; // Not in whitelist mode
 
         return this.whitelist.includes(reddac.transmitterId);
+    }
+
+    /**
+     * Check to see if an event is all zeroes.
+     * This happens when a sensor is just booting up
+     * @param {Object} event Decoded event
+     */
+    isInvalidEvent(event) {
+        switch (event.messageType) {
+            case 'sensor':
+                return event.temperature === 0
+                    && event.relativeHumidity === 0
+                    && event.ambientLight === 0
+                    && event.barometricPressure === 0;
+            case 'calculation':
+                return event.accXAxis === 0
+                    && event.accYAxis === 0
+                    && event.accZAxis === 0
+                    && event.discomfortIndex === 0
+                    && event.heatStrokeRisk === 0;
+            default:
+                this.handleError(new Error(`Could not check validity of message type ${event.messageType}`));
+        }
+    }
+
+    /**
+     * Check to see if it has been long enough since we sent an 
+     * event for this device
+     * @param {string} event The decoded message
+     */
+    isCooledDown(event) {
+        if (this.interval === 0) return true; // No interval defined
+
+        let now = new Date();
+        let lastEvent = this.lastEventRecords[event.messageType][event.deviceId];
+
+        if (!lastEvent) return true; // First ever event for this sensor
+
+        return now - lastEvent >= this.interval * 1000;
+    }
+
+    /**
+     * Check to see if the event with this seq. ID has already been emitted
+     * @param {Object} event The event under consideration for emission
+     */
+    isDuplicateEvent(event) {
+
+        if (this.testMode) return false; // Disable this check in test mode
+
+        let prevSequence = this.lastSequenceNumber[event.messageType] && this.lastSequenceNumber[event.messageType][event.deviceId]
+            ? this.lastSequenceNumber[event.messageType][event.deviceId]
+            : null;
+
+        if (!prevSequence) return false; // No previous record
+
+        return event.sequenceNumber === prevSequence;
     }
 
     /**
@@ -170,7 +276,8 @@ class OmronSensorService extends EventEmitter {
 
                 // Perform applicable transformations (see page 102 https://omronfs.omron.com/en_US/ecb/products/pdf/A279-E1-01.pdf)
                 parsed.temperature /= 100; // degC
-                parsed.temperatureF = (parsed.temperature * 9 / 5) + 32; // degF
+                // https://stackoverflow.com/a/41716722/5354201
+                parsed.temperatureF = Math.round((Number.EPSILON + (parsed.temperature * 9 / 5) + 32) * 100) / 100; // degF
                 parsed.relativeHumidity /= 100; // %RH
                 parsed.barometricPressure /= 1000; // hPa
                 parsed.soundLevel /= 100; // dB
