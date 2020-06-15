@@ -62,7 +62,10 @@ const sensor = new Sensor({
 	// If omitted, a Barnowl instance will be created and register the BarnowlHci listener
 	// Use this if you already have a Barnowl instance in your project and you just want to
 	// add the ability to process Omron data frames.
-	barnowl: existingBarnowlInstance
+    barnowl: existingBarnowlInstance,
+    
+    // Minimum number of seconds to wait before emitting another reading.
+    interval: 5
 
 });
 ```
